@@ -60,7 +60,7 @@ export function MemoryForm({ onSave, onClose, isLoading, initialDraft }: Props) 
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!title.trim() || !content.trim() || isLoading) return
+    if (!title.trim() || !content.trim() || isLoading || saved) return
 
     try {
       await onSave({
@@ -71,7 +71,6 @@ export function MemoryForm({ onSave, onClose, isLoading, initialDraft }: Props) 
         txDigest: txDigest.trim() || undefined,
       })
       setSaved(true)
-      window.setTimeout(close, 800)
     } catch (error) {
       if (error instanceof Error && error.message === 'Mainnet save cancelled') {
         return
@@ -223,33 +222,77 @@ export function MemoryForm({ onSave, onClose, isLoading, initialDraft }: Props) 
           <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>optional</span>
         </label>
 
-        <button
-          type="submit"
-          disabled={isLoading || saved || !title.trim() || !content.trim()}
-          style={{
-            width: '100%',
-            height: '44px',
-            borderRadius: '8px',
-            border: 'none',
-            background: saved
-              ? 'var(--accent-teal)'
-              : isLoading
-                ? 'linear-gradient(90deg, var(--accent-blue), var(--accent-teal), var(--accent-blue))'
-                : 'var(--accent-blue)',
-            backgroundSize: isLoading ? '200% 100%' : undefined,
-            animation: isLoading ? 'shimmer 2s linear infinite' : undefined,
-            color: 'white',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            cursor: isLoading ? 'wait' : 'pointer',
-            fontWeight: 700,
-          }}
-        >
-          {saved ? <Check size={16} /> : isLoading ? <Loader2 size={16} className="animate-spin" /> : <span style={{ width: '8px', height: '8px', borderRadius: '9999px', background: typeColor(type) }} />}
-          {saved ? 'Saved to Vault' : isLoading ? 'Saving to Walrus...' : 'Save Memory'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+          {saved ? (
+            <button
+              type="button"
+              onClick={close}
+              style={{
+                width: '100%',
+                height: '44px',
+                borderRadius: '8px',
+                border: 'none',
+                background: 'var(--accent-teal)',
+                color: 'white',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                fontWeight: 700,
+              }}
+            >
+              <Check size={16} />
+              Saved to Vault — Close
+            </button>
+          ) : (
+            <>
+              <button
+                type="submit"
+                disabled={isLoading || !title.trim() || !content.trim()}
+                style={{
+                  flex: 1,
+                  height: '44px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: isLoading
+                    ? 'linear-gradient(90deg, var(--accent-blue), var(--accent-teal), var(--accent-blue))'
+                    : 'var(--accent-blue)',
+                  backgroundSize: isLoading ? '200% 100%' : undefined,
+                  animation: isLoading ? 'shimmer 2s linear infinite' : undefined,
+                  color: 'white',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: isLoading ? 'wait' : !title.trim() || !content.trim() ? 'not-allowed' : 'pointer',
+                  opacity: !title.trim() || !content.trim() ? 0.6 : 1,
+                  fontWeight: 700,
+                }}
+              >
+                {isLoading ? <Loader2 size={16} className="animate-spin" /> : <span style={{ width: '8px', height: '8px', borderRadius: '9999px', background: typeColor(type) }} />}
+                {isLoading ? 'Saving to Walrus...' : 'Save Memory'}
+              </button>
+              <button
+                type="button"
+                onClick={close}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '8px',
+                  border: '0.5px solid var(--border)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                <X size={16} />
+              </button>
+            </>
+          )}
+        </div>
       </form>
     </div>
   )

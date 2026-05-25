@@ -98,7 +98,7 @@ export async function saveMemoryToWalrus(
       }
 
       const blobId = extractBlobId(await response.json());
-      console.info("[walrus] publisher success", { network, publisherUrl });
+      console.info("[walrus] publisher success", { network });
       return blobId;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));

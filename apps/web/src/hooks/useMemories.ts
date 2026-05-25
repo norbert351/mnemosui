@@ -39,14 +39,6 @@ function legacyIndexKey(network: SuiNetwork, walletAddress: string): string {
   return `mnemosui_memory_index_${network}_${normalizeWalletAddress(walletAddress)}`
 }
 
-function truncateWalletAddress(walletAddress: string): string {
-  return `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-}
-
-function truncateBlobId(blobId: string): string {
-  return blobId.length > 14 ? `${blobId.slice(0, 6)}...${blobId.slice(-6)}` : blobId
-}
-
 function readIndex(network: SuiNetwork, walletAddress: string): WalletMemoryIndex {
   const key = indexKey(network, walletAddress)
   const legacyKey = legacyIndexKey(network, walletAddress)
@@ -157,7 +149,7 @@ function unavailableMemoryFromEntry(entry: MemoryIndexEntry, walletAddress: stri
 }
 
 function cachedMemoriesFromIndex(network: SuiNetwork, walletAddress: string): Memory[] {
-  console.info(`[network] loading ${network} memories`)
+  console.info(`[network] loading ${network} wallet memories`)
   const index = readIndex(network, walletAddress)
   return index.blobIds
     .map(blobId => index.cache[blobId])
@@ -188,16 +180,12 @@ async function loadIndexedMemories(network: SuiNetwork, walletAddress: string): 
   const index = readIndex(network, walletAddress)
   console.info('[useMemories] loading index', {
     network,
-    walletAddress: truncateWalletAddress(walletAddress),
     blobCount: index.blobIds.length,
   })
 
   if (index.blobIds.length === 0) {
-    console.info('[useMemories] loaded N memories', {
+    console.info('[useMemories] no memories to load', {
       network,
-      walletAddress: truncateWalletAddress(walletAddress),
-      loadedCount: 0,
-      requestedCount: 0,
     })
     return []
   }
@@ -223,8 +211,6 @@ async function loadIndexedMemories(network: SuiNetwork, walletAddress: string): 
     }
     console.error('[useMemories] failed blobId', {
       network,
-      walletAddress: truncateWalletAddress(walletAddress),
-      blobId: truncateBlobId(blobId),
       error: result.reason instanceof Error ? result.reason.message : String(result.reason),
     })
   })
@@ -232,16 +218,13 @@ async function loadIndexedMemories(network: SuiNetwork, walletAddress: string): 
   if (failedBlobIds.length > 0) {
     console.warn('[useMemories] continuing with partial results', {
       network,
-      walletAddress: truncateWalletAddress(walletAddress),
-      failedBlobIds: failedBlobIds.map(truncateBlobId),
       loadedCount: loadedMemories.length,
       requestedCount: index.blobIds.length,
     })
   }
 
-  console.info('[useMemories] loaded N memories', {
+  console.info('[useMemories] loaded memories', {
     network,
-    walletAddress: truncateWalletAddress(walletAddress),
     loadedCount: loadedMemories.length,
     requestedCount: index.blobIds.length,
   })
@@ -286,10 +269,7 @@ export function useMemories(walletAddress: string | undefined) {
           setError('Walrus is taking longer than usual. Cached memories remain available.')
         }
       }, MEMORY_LOAD_SOFT_TIMEOUT_MS)
-      console.info('[useMemories] loading started', {
-        network,
-        walletAddress: truncateWalletAddress(normalizedWalletAddress),
-      })
+      console.info('[useMemories] loading started', { network })
 
       try {
         const cachedMemories = cachedMemoriesFromIndex(network, normalizedWalletAddress)
@@ -371,11 +351,7 @@ export function useMemories(walletAddress: string | undefined) {
     setError(null)
 
     try {
-      console.info('[useMemories] saveMemory start', {
-        network,
-        walletAddress: truncateWalletAddress(normalizedWalletAddress),
-        title: draft.title,
-      })
+      console.info('[useMemories] saveMemory start', { network })
 
       const summary = await summarizeMemory(draft.content).catch(error => {
         console.error('[useMemories] summarizeMemory failed, falling back to local summary', error)
@@ -421,7 +397,7 @@ export function useMemories(walletAddress: string | undefined) {
 
       setMemories(prev => dedupeMemories([savedMemory, ...prev]))
       publishMemoryRefresh(network, normalizedWalletAddress)
-      console.info('[useMemories] saveMemory success', { network, blobId: truncateBlobId(blobId) })
+      console.info('[useMemories] saveMemory success', { network })
       return savedMemory
     } catch (saveError) {
       console.error('[useMemories] saveMemory failed', saveError)

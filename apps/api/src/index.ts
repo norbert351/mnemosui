@@ -14,11 +14,13 @@ dotenv.config();
 const app = express();
 const port = Number.parseInt(process.env.PORT ?? "3001", 10);
 const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
+const frontendOriginsRaw = process.env.FRONTEND_ORIGINS ?? "";
 const allowedOrigins = new Set([
   frontendOrigin,
   "http://localhost:5173",
   "http://localhost:3000",
   "http://127.0.0.1:5173",
+  ...frontendOriginsRaw.split(",").map(s => s.trim()).filter(Boolean),
 ]);
 const corsOptions: CorsOptions = {
   origin(origin, callback) {
@@ -27,7 +29,7 @@ const corsOptions: CorsOptions = {
       return;
     }
 
-    console.warn("[api/cors] blocked origin", { origin });
+    console.warn("[api/cors] blocked origin", { origin, allowedOrigins: Array.from(allowedOrigins) });
     callback(new Error(`CORS blocked origin: ${origin}`));
   },
   methods: ["GET", "POST", "OPTIONS"],

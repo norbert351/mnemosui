@@ -141,14 +141,12 @@ export async function getWalletTransactionHistory(
   if (sentResult.status === "rejected") {
     console.warn("[tatum] sent tx fetch failed", {
       network,
-      walletAddress: truncateWalletAddress(walletAddress),
       error: sentResult.reason instanceof Error ? sentResult.reason.message : String(sentResult.reason),
     });
   }
   if (receivedResult.status === "rejected") {
     console.warn("[tatum] received tx fetch failed", {
       network,
-      walletAddress: truncateWalletAddress(walletAddress),
       error: receivedResult.reason instanceof Error ? receivedResult.reason.message : String(receivedResult.reason),
     });
   }

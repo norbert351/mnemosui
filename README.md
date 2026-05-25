@@ -30,20 +30,56 @@ npm run dev:web
 
 ## Environment variables
 
-Backend:
-- `OPENROUTER_API_KEY`
-- `TATUM_API_KEY`
-- `TATUM_RPC_URL` or `TATUM_TESTNET_RPC_URL`
-- `TATUM_MAINNET_RPC_URL`
-- `WALRUS_PUBLISHER_URL`
-- `WALRUS_AGGREGATOR_URL`
-- `WALRUS_TESTNET_PUBLISHER_URL`
-- `WALRUS_TESTNET_AGGREGATOR_URL`
-- `WALRUS_MAINNET_PUBLISHER_URL`
-- `WALRUS_MAINNET_AGGREGATOR_URL`
+### Backend (apps/api/.env)
 
-Frontend:
-- `VITE_BACKEND_URL`
+| Variable | Description | Required |
+| -------- | ----------- | -------- |
+| `PORT` | API server port (default: 3001) | No |
+| `FRONTEND_ORIGIN` | Single allowed CORS origin | Yes |
+| `FRONTEND_ORIGINS` | Comma-separated additional CORS origins | No |
+| `OPENROUTER_API_KEY` | OpenRouter API key for AI | **Yes** |
+| `TATUM_API_KEY` | Tatum API key for Sui RPC | **Yes** |
+| `TATUM_RPC_URL` | Testnet RPC URL (default: Tatum testnet) | No |
+| `TATUM_TESTNET_RPC_URL` | Explicit testnet RPC URL | No |
+| `TATUM_MAINNET_RPC_URL` | Mainnet RPC URL (default: Tatum mainnet) | No |
+| `WALRUS_PUBLISHER_URL` | Testnet Walrus publisher | No |
+| `WALRUS_AGGREGATOR_URL` | Testnet Walrus aggregator | No |
+| `WALRUS_TESTNET_PUBLISHER_URL` | Explicit testnet Walrus publisher | No |
+| `WALRUS_TESTNET_AGGREGATOR_URL` | Explicit testnet Walrus aggregator | No |
+| `WALRUS_MAINNET_PUBLISHER_URL` | Mainnet Walrus publisher (default: publisher.walrus.space) | No |
+| `WALRUS_MAINNET_AGGREGATOR_URL` | Mainnet Walrus aggregator (default: aggregator.walrus.space) | No |
+
+### Frontend (apps/web/.env)
+
+| Variable | Description | Required |
+| -------- | ----------- | -------- |
+| `VITE_BACKEND_URL` | Backend API URL | **Yes** |
+
+### Render (Backend) Environment Variables
+
+Set these in Render dashboard:
+
+```
+PORT=3001
+FRONTEND_ORIGIN=https://mnemosui.vercel.app
+FRONTEND_ORIGINS=https://mnemosui.vercel.app,http://localhost:5173
+OPENROUTER_API_KEY=sk-or-v1-...
+TATUM_API_KEY=t-...
+TATUM_TESTNET_RPC_URL=https://sui-testnet.gateway.tatum.io
+TATUM_MAINNET_RPC_URL=https://sui-mainnet.gateway.tatum.io
+WALRUS_TESTNET_PUBLISHER_URL=https://publisher.walrus-testnet.walrus.space
+WALRUS_TESTNET_AGGREGATOR_URL=https://aggregator.walrus-testnet.walrus.space
+WALRUS_MAINNET_PUBLISHER_URL=https://publisher.walrus.space
+WALRUS_MAINNET_AGGREGATOR_URL=https://aggregator.walrus.space
+```
+
+### Vercel (Frontend) Environment Variables
+
+Set these in Vercel dashboard:
+
+```
+VITE_BACKEND_URL=https://your-render-backend.onrender.com
+```
 
 ## Demo flow
 
@@ -55,20 +91,54 @@ Frontend:
 6. Open Vault and confirm the saved memory
 7. Ask why that decision was made
 
-## Mainnet deployment
+## Deployment
 
-- Frontend: Vercel
-- Backend: Railway or Render
-- Storage: Walrus
-- Blockchain: Sui
+### Backend (Render)
+
+1. Create a new Web Service on Render
+2. Set root directory to `apps/api`
+3. Build command: `npm install && npm run build`
+4. Start command: `npm start`
+5. Add all environment variables from the table above
+
+### Frontend (Vercel)
+
+1. Import the repo on Vercel
+2. Set root directory to `apps/web`
+3. Framework: Vite
+4. Build command: `npm run build`
+5. Add `VITE_BACKEND_URL` environment variable
+6. Add `FRONTEND_ORIGIN=https://mnemosui.vercel.app` (and your Vercel domain) to Render env
+
+## Multi-Network Support
+
+MnemoSui supports both Sui Testnet and Sui Mainnet. Network switching happens at runtime, and each environment is isolated with its own vault state, Walrus environment, and RPC endpoint so testnet and mainnet memories never mix.
+
+| Feature | Testnet | Mainnet |
+| ------- | ------- | ------- |
+| Sui RPC | `sui-testnet.gateway.tatum.io` | `sui-mainnet.gateway.tatum.io` |
+| Walrus Publisher | `publisher.walrus-testnet.walrus.space` | `publisher.walrus.space` |
+| Walrus Aggregator | `aggregator.walrus-testnet.walrus.space` | `aggregator.walrus.space` |
+| Sui Explorer | `suiscan.xyz/testnet` | `suiscan.xyz/mainnet` |
+| Wallet Balances | Testnet SUI | Real SUI |
+| Memory Storage | Network-scoped (isolated) | Network-scoped (isolated) |
+
+### Memory Isolation
+
+Memories are stored with network-scoped keys:
+- Testnet: `mnemosui-testnet-memories-0xwallet...`
+- Mainnet: `mnemosui-mainnet-memories-0xwallet...`
+
+Switching networks never wipes or mixes vault data.
 
 ## Tech stack
 
-- React + Vite
+- React 19 + Vite 8
 - Express + TypeScript
-- OpenRouter
-- Walrus
-- Sui / Tatum
+- @mysten/dapp-kit (Sui wallet)
+- OpenRouter (AI)
+- Walrus (decentralized storage)
+- Tatum (Sui RPC gateway)
 - TanStack Query
 
 ---

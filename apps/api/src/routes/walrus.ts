@@ -20,15 +20,10 @@ router.post("/save", async (req, res, next) => {
   try {
     const { memory } = validateSaveMemoryRequestBody(req.body);
     const network = getSuiNetworkFromHeader(req.headers["x-sui-network"]);
-    console.info("[api/walrus] save requested", {
-      walletAddress: truncateWalletAddress(memory.walletAddress),
-      memoryId: memory.id,
-      memoryType: memory.type,
-      network
-    });
+    console.info("[api/walrus] save requested", { network });
     const blobId = await saveMemoryToWalrus(memory, network);
 
-    console.info("[api/walrus] save complete", { blobId: truncateBlobId(blobId), network });
+    console.info("[api/walrus] save complete", { network });
     res.json({ blobId });
   } catch (error) {
     console.error("[api/walrus] save failed", error);
@@ -45,7 +40,7 @@ router.get("/load/:blobId", async (req, res, next) => {
   try {
     const blobId = validateBlobId(req.params.blobId);
     const network = getSuiNetworkFromHeader(req.headers["x-sui-network"]);
-    console.info("[api/walrus] load requested", { blobId: truncateBlobId(blobId), network });
+    console.info("[api/walrus] load requested", { network });
     const memory = await loadMemoryFromWalrus(blobId, network);
 
     res.json({ memory: { ...memory, blobId, saved: true } });

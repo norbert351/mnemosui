@@ -1,9 +1,9 @@
 import type { ChatMessage } from "../types";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const FREE_MODEL = "openrouter/free";
+const FREE_MODEL = "deepseek/deepseek-v4-pro";
 const FALLBACK_MODELS = [
-  "openai/gpt-oss-120b:free",
+  "openai/gpt-5-chat",
   "deepseek/deepseek-v4-flash:free",
 ];
 const PRIMARY_MODEL = FREE_MODEL;

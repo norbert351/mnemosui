@@ -16,17 +16,17 @@ export const DEFAULT_SUI_NETWORK: SuiNetwork = 'testnet'
 export const NETWORK_CONFIGS: Record<SuiNetwork, NetworkConfig> = {
   testnet: {
     label: 'TESTNET',
-    rpcUrl: 'https://sui-testnet.gateway.tatum.io',
-    publisherUrl: 'https://publisher.walrus-testnet.walrus.space',
-    aggregatorUrl: 'https://aggregator.walrus-testnet.walrus.space',
+    rpcUrl: import.meta.env.VITE_TATUM_RPC || 'https://sui-testnet.gateway.tatum.io',
+    publisherUrl: import.meta.env.VITE_WALRUS_PUBLISHER || 'https://publisher.walrus-testnet.walrus.space',
+    aggregatorUrl: import.meta.env.VITE_WALRUS_AGGREGATOR || 'https://aggregator.walrus-testnet.walrus.space',
     explorerBaseUrl: 'https://suiscan.xyz/testnet',
     badgeColor: 'var(--accent-amber)',
   },
   mainnet: {
     label: 'MAINNET',
-    rpcUrl: 'https://sui-mainnet.gateway.tatum.io',
-    publisherUrl: 'https://publisher.walrus.space',
-    aggregatorUrl: 'https://aggregator.walrus.space',
+    rpcUrl: import.meta.env.VITE_TATUM_MAINNET_RPC || 'https://sui-mainnet.gateway.tatum.io',
+    publisherUrl: import.meta.env.VITE_WALRUS_MAINNET_PUBLISHER || 'https://publisher.walrus.space',
+    aggregatorUrl: import.meta.env.VITE_WALRUS_MAINNET_AGGREGATOR || 'https://aggregator.walrus.space',
     explorerBaseUrl: 'https://suiscan.xyz/mainnet',
     badgeColor: 'var(--accent-teal)',
   },
@@ -58,4 +58,8 @@ export function networkLabel(network: SuiNetwork): string {
 
 export function networkBadgeColor(network: SuiNetwork): string {
   return NETWORK_CONFIGS[network].badgeColor
+}
+
+export function getScopedStorageKey(network: SuiNetwork, walletAddress: string, key: string): string {
+  return `${key}:${network}:${walletAddress.toLowerCase()}`
 }

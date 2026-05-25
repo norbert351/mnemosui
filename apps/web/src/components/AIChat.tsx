@@ -65,11 +65,21 @@ function normalizeString(value: unknown): string | undefined {
 function sanitizeAIContent(content: string) {
   return content
     .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
-    .replace(/<tool_call>\s*(?:check_balances|check_wallet)?\s*(?:\{[\s\S]*?\})?/gi, '')
-    .replace(/\b(?:check_balances|check_wallet)\b\s*(?:\{[\s\S]*?\})?/gi, '')
-    .replace(/\s*\{[^{}]*"address"\s*:\s*"0x[^"]+"[^{}]*\}\s*/gi, '')
+    .replace(/<tool_call>\s*(?:check_balances|check_wallet|get_balance|get_wallet)?\s*(?:\{[\s\S]*?\})?/gi, '')
+    .replace(/\b(?:check_balances|check_wallet|get_balance|get_wallet)\b\s*(?:\{[\s\S]*?\})?/gi, '')
+    .replace(/\s*\{[^{}]*"(?:address|wallet)"\s*:\s*"0x[^"]+"[^{}]*\}\s*/gi, '')
+    .replace(/```(?:json|xml)?\s*<tool_call>[\s\S]*?<\/tool_call>\s*```/gi, '')
+    .replace(/```[\s\S]*?```/g, match => {
+      const inner = match.replace(/```/g, '')
+      if (inner.includes('tool_call') || inner.includes('DECISION_CARD')) {
+        return match
+      }
+      return match
+    })
     .replace(/<tool_call>/gi, '')
     .replace(/<\/tool_call>/gi, '')
+    .replace(/<function_call>[\s\S]*?<\/function_call>/gi, '')
+    .replace(/\b(?:function|tool)\s*calls?\b[\s\S]{0,200}/gi, '')
     .trim()
 }
 
@@ -499,8 +509,7 @@ export function AIChat({ memories, walletAddress, balances, saveMemory }: Props)
       })
 
       setCardSaveState(prev => ({ ...prev, [card.id]: 'saved' }))
-    } catch (err) {
-      console.error('[AIChat] decision save failed:', err)
+    } catch {
       setCardSaveState(prev => ({ ...prev, [card.id]: 'error' }))
     } finally {
       savingCardsRef.current.delete(card.id)
@@ -560,12 +569,7 @@ export function AIChat({ memories, walletAddress, balances, saveMemory }: Props)
         textChunk => {
           if (abortController.signal.aborted) return
 
-          const cleanedDelta = textChunk
-            .replace(/<tool_call>/gi, '')
-            .replace(/<\/tool_call>/gi, '')
-            .replace(/check_balances/gi, '')
-            .replace(/check_wallet/gi, '')
-            .replace(/\s*\{[^{}]*"address"\s*:\s*"0x[^"]+"[^{}]*\}\s*/gi, '')
+          const cleanedDelta = sanitizeAIContent(textChunk)
 
           if (!cleanedDelta.trim()) {
             return
@@ -622,7 +626,6 @@ export function AIChat({ memories, walletAddress, balances, saveMemory }: Props)
         return
       }
 
-      console.error('[AIChat] error:', err)
       const friendly = friendlyErrorMessage(err)
       setLastError(friendly)
       setMessages(prev => {

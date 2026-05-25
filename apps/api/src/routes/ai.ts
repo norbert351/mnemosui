@@ -38,11 +38,22 @@ function normalizeCoinType(value: unknown): string | undefined {
 }
 
 function formatBalance(raw?: string) {
-  const value = Number(raw ?? "0");
+  const rawValue = raw ?? "0";
+  const value = Number(rawValue);
 
-  // Convert MIST -> SUI.
-  return (value / 1_000_000_000).toLocaleString(undefined, {
-    maximumFractionDigits: 4
+  if (!Number.isFinite(value) || value < 0) {
+    return "0";
+  }
+
+  const sui = value / 1_000_000_000;
+
+  if (sui < 0.0001) {
+    return "< 0.0001";
+  }
+
+  return sui.toLocaleString(undefined, {
+    maximumFractionDigits: 4,
+    minimumFractionDigits: sui < 1 ? 4 : 2,
   });
 }
 
@@ -145,12 +156,14 @@ function buildMemoryContext(
     "IMPORTANT RESPONSE RULES:",
     "- Never output XML tags",
     "- Never output <tool_call>",
-    "- Never simulate function calling",
-    "- Never pretend to call APIs",
+    "- Never simulate function calling or tool calling",
+    "- Never pretend to call APIs or invoke tools",
     "- Never output raw JSON unless generating a DECISION_CARD",
     "- Respond like a normal conversational crypto AI assistant",
-    "- Do not expose internal reasoning or tools",
+    "- Do not expose internal reasoning or tools or function definitions",
     "- Never emit markdown code blocks unless explicitly requested",
+    "- This model has NO function calling capability. Never attempt it.",
+    "- You are a text-only chat model. Never output structured tool requests.",
     "DECISION_CARD format only:",
     "---",
     'DECISION_CARD:{"action":"buy","token":"SUI","allocation":"10%","risk":"medium","reason":"your one-line reason here","confidence":"medium"}',
@@ -173,13 +186,7 @@ router.post("/chat", async (req, res, next) => {
     const abortController = new AbortController();
     let clientConnected = true;
 
-    console.info("[api/ai] chat stream requested", {
-      walletAddress: truncateWalletAddress(walletAddress),
-      memoryCount: memories?.length ?? 0,
-      hasBalances: Array.isArray(balances) ? balances.length > 0 : Boolean(balances),
-      messageCount: messages.length,
-      trimmedMessageCount: trimmedMessages.length
-    });
+    console.info("[api/ai] chat stream requested");
 
     req.on("close", () => {
       clientConnected = false;
@@ -224,7 +231,7 @@ router.post("/chat", async (req, res, next) => {
 router.post("/summarize", async (req, res, next) => {
   try {
     const { content } = validateSummarizeRequestBody(req.body);
-    console.info("[api/ai] summarize requested", { contentLength: content.length });
+    console.info("[api/ai] summarize requested");
     const summary = await summarizeMemory(content);
 
     res.json({ summary });

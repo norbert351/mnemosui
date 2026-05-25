@@ -32,14 +32,6 @@ function normalizeBackendUrl(): string {
   return BACKEND_URL.replace(/\/+$/, '')
 }
 
-function truncateAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`
-}
-
-function truncateBlobId(blobId: string): string {
-  return blobId.length > 14 ? `${blobId.slice(0, 6)}...${blobId.slice(-6)}` : blobId
-}
-
 async function readJson<T>(response: Response, context: string): Promise<T> {
   const payload = (await response.json().catch(() => null)) as ApiErrorPayload | T | null
 
@@ -66,7 +58,6 @@ async function readJson<T>(response: Response, context: string): Promise<T> {
 }
 
 export async function summarizeMemory(content: string): Promise<string> {
-  console.info('[web/api] summarizeMemory request')
   const response = await fetch(`${normalizeBackendUrl()}/api/ai/summarize`, {
     method: 'POST',
     headers: {
@@ -81,11 +72,6 @@ export async function summarizeMemory(content: string): Promise<string> {
 }
 
 export async function saveMemory(memory: Memory, network: SuiNetwork = getStoredSuiNetwork()): Promise<string> {
-  console.info('[web/api] saveMemory request', {
-    walletAddress: truncateAddress(memory.walletAddress),
-    id: memory.id,
-    type: memory.type,
-  })
   const response = await fetch(`${normalizeBackendUrl()}/api/walrus/save`, {
     method: 'POST',
     headers: {
@@ -96,12 +82,10 @@ export async function saveMemory(memory: Memory, network: SuiNetwork = getStored
   })
 
   const data = await readJson<SaveMemoryResponse>(response, 'saveMemory')
-  console.info('[web/api] saveMemory success', { blobId: truncateBlobId(data.blobId) })
   return data.blobId
 }
 
 export async function loadMemory(blobId: string, network: SuiNetwork = getStoredSuiNetwork()): Promise<Memory> {
-  console.info('[web/api] loadMemory request', { blobId: truncateBlobId(blobId) })
   const controller = new AbortController()
   const timeoutId = setTimeout(() => {
     controller.abort()
@@ -116,7 +100,7 @@ export async function loadMemory(blobId: string, network: SuiNetwork = getStored
     return { ...data.memory, blobId, saved: true }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      console.error('[web/api] loadMemory timed out', { blobId: truncateBlobId(blobId), timeoutMs: WALRUS_LOAD_TIMEOUT_MS })
+      console.error('[web/api] loadMemory timed out', { timeoutMs: WALRUS_LOAD_TIMEOUT_MS })
       throw new Error('Walrus temporarily unavailable')
     }
 
@@ -127,7 +111,6 @@ export async function loadMemory(blobId: string, network: SuiNetwork = getStored
 }
 
 export async function getWalletHistory(walletAddress: string, network: SuiNetwork = getStoredSuiNetwork()): Promise<WalletHistory> {
-  console.info('[web/api] getWalletHistory request', { walletAddress: truncateAddress(walletAddress) })
   const response = await fetch(`${normalizeBackendUrl()}/api/sui/history`, {
     method: 'POST',
     headers: {
@@ -142,7 +125,6 @@ export async function getWalletHistory(walletAddress: string, network: SuiNetwor
 }
 
 export async function getWalletBalances(walletAddress: string, network: SuiNetwork = getStoredSuiNetwork()): Promise<unknown> {
-  console.info('[web/api] getWalletBalances request', { walletAddress: truncateAddress(walletAddress) })
   const response = await fetch(`${normalizeBackendUrl()}/api/sui/balances`, {
     method: 'POST',
     headers: {
@@ -166,13 +148,6 @@ export async function streamAiChat(
   network: SuiNetwork = getStoredSuiNetwork(),
 ): Promise<void> {
   const backend = normalizeBackendUrl()
-
-  console.info('[api] streamAiChat sending', {
-    walletAddress: truncateAddress(walletAddress),
-    memoryCount: memories.length,
-    messageCount: messages.length,
-    hasBalances: Array.isArray(balances) ? balances.length > 0 : Boolean(balances),
-  })
 
   const response = await fetch(`${backend}/api/ai/chat`, {
     method: 'POST',

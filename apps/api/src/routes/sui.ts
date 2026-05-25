@@ -17,11 +17,7 @@ router.post("/history", async (req, res, next) => {
   try {
     const { walletAddress, limit } = validateWalletHistoryRequestBody(req.body);
     const network = getSuiNetworkFromHeader(req.headers["x-sui-network"]);
-    console.info("[api/sui] history requested", {
-      walletAddress: truncateWalletAddress(walletAddress),
-      limit,
-      network
-    });
+    console.info("[api/sui] history requested", { limit, network });
     const result = await getWalletTransactionHistory(walletAddress, limit ?? 20, network);
 
     res.json({ result });
@@ -35,10 +31,7 @@ router.post("/balances", async (req, res, next) => {
   try {
     const { walletAddress } = validateWalletRequestBody(req.body);
     const network = getSuiNetworkFromHeader(req.headers["x-sui-network"]);
-    console.info("[api/sui] balances requested", {
-      walletAddress: truncateWalletAddress(walletAddress),
-      network
-    });
+    console.info("[api/sui] balances requested", { network });
     const result = await getWalletBalances(walletAddress, network);
 
     res.json({ result });
