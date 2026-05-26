@@ -347,12 +347,12 @@ button:not(:disabled):active,
 .chat-bubble {
   width: fit-content;
   max-width: 100%;
-  padding: 12px 15px;
+  padding: 14px 18px;
   color: var(--text-primary);
   font-size: 14px;
   line-height: 1.7;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: break-word;
   box-shadow: var(--shadow-card);
 }
 
@@ -573,16 +573,6 @@ button:not(:disabled):active,
   color: var(--text-primary);
 }
 
-.chat-bubble-assistant p,
-.chat-bubble-assistant ul,
-.chat-bubble-assistant ol {
-  margin: 0 0 10px;
-}
-
-.chat-bubble-assistant :last-child {
-  margin-bottom: 0;
-}
-
 .chat-cursor {
   margin-left: 2px;
   color: var(--accent-blue);
@@ -789,10 +779,6 @@ button:not(:disabled):active,
 
   .chat-empty-prompts {
     grid-template-columns: 1fr;
-  }
-
-  .chat-bubble {
-    font-size: 13px;
   }
 
   .chat-composer {

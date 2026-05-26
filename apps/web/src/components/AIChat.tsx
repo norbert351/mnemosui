@@ -63,7 +63,7 @@ function normalizeString(value: unknown): string | undefined {
 }
 
 function sanitizeAIContent(content: string) {
-  return content
+  let cleaned = content
     .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
     .replace(/<tool_call>\s*(?:check_balances|check_wallet|get_balance|get_wallet)?\s*(?:\{[\s\S]*?\})?/gi, '')
     .replace(/\b(?:check_balances|check_wallet|get_balance|get_wallet)\b\s*(?:\{[\s\S]*?\})?/gi, '')
@@ -80,7 +80,7 @@ function sanitizeAIContent(content: string) {
     .replace(/<\/tool_call>/gi, '')
     .replace(/<function_call>[\s\S]*?<\/function_call>/gi, '')
     .replace(/\b(?:function|tool)\s*calls?\b[\s\S]{0,200}/gi, '')
-    .trim()
+  return cleaned
 }
 
 function parseDecisionCard(content: string): { cleanContent: string; card: AIActionCard | null } {
@@ -161,6 +161,30 @@ function CardStat({ label, value, color }: { label: string; value: string; color
       <strong style={{ fontWeight: 600 }}>{value}</strong>
     </span>
   )
+}
+
+function MessageContent({ content, streaming, isUser }: { content: string; streaming?: boolean; isUser: boolean }) {
+  const bubbleText = "whitespace-pre-wrap break-words text-sm md:text-[15px] leading-6 md:leading-7 antialiased"
+
+  if (streaming || isUser) {
+    return <span className={bubbleText}>{content}</span>
+  }
+
+  const paragraphs = content.split(/\n{2,}/).filter(Boolean)
+
+  if (paragraphs.length <= 1) {
+    return (
+      <p className={`${bubbleText} tracking-normal text-slate-200`}>
+        {content}
+      </p>
+    )
+  }
+
+  return paragraphs.map((p, i) => (
+    <p key={i} className={`${bubbleText} tracking-normal text-slate-200 mb-4 last:mb-0`}>
+      {p}
+    </p>
+  ))
 }
 
 function TypingIndicator() {
@@ -752,7 +776,7 @@ export function AIChat({ memories, walletAddress, balances, saveMemory }: Props)
                     )}
                     <div
                       style={{
-                        maxWidth: isUser ? 'min(82%, 740px)' : 'min(86%, 820px)',
+                        maxWidth: isUser ? 'min(82%, 740px)' : 'min(75%, 700px)',
                         width: 'fit-content',
                         display: 'grid',
                         gap: '10px',
@@ -761,7 +785,7 @@ export function AIChat({ memories, walletAddress, balances, saveMemory }: Props)
                       <div
                         className={isUser ? 'chat-bubble chat-bubble-user slide-up' : 'chat-bubble chat-bubble-assistant slide-up'}
                       >
-                        {msg.content}
+                        <MessageContent content={msg.content} streaming={msg.streaming} isUser={isUser} />
                         {msg.streaming ? <span className="chat-cursor" aria-hidden="true">|</span> : null}
                       </div>
                       {!isUser && msg.actionCard && !dismissedCards.has(msg.actionCard.id) && (
