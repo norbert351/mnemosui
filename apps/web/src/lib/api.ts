@@ -1,7 +1,9 @@
 import type { ChatMessage, Memory, WalletHistory } from '../types'
 import { getStoredSuiNetwork, networkHeader, type SuiNetwork } from './network'
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001'
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ??
+  (import.meta.env.PROD ? 'https://mnemosui.onrender.com' : 'http://localhost:3001')
 const WALRUS_LOAD_TIMEOUT_MS = 30_000
 
 interface ApiErrorPayload {
