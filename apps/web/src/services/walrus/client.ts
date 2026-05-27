@@ -16,7 +16,6 @@ export function createWalrusClient(network: WalrusNetwork, suiClient: any) {
     uploadRelay: {
       host: getRelayHost(network),
       timeout: 600_000,
-      sendTip: { max: 1000 },
     },
   })
 }
