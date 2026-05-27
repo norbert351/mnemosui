@@ -1,19 +1,23 @@
+import type { Signer } from '@mysten/sui/cryptography'
+
+export type WalrusSigner = Signer
+
 export interface WalrusUploadResult {
   blobId: string
   blobObject: {
     id: string
+    registered_epoch: number
+    blob_id: string
+    size: string
+    encoding_type: number
+    certified_epoch: number | null
     storage: {
       id: string
       start_epoch: number
       end_epoch: number
-      storage_size: number
+      storage_size: string
     }
-    blob_id: string
-    blob_size: number
     deletable: boolean
-    erasure_code_type: string
-    encoding_type: string
-    certified_epoch: number | null
   }
   endEpoch: number
 }
@@ -24,14 +28,3 @@ export interface WalrusReadResult {
 }
 
 export type UploadStatus = 'idle' | 'creating_storage' | 'registering' | 'uploading' | 'certifying' | 'success' | 'error'
-
-export interface WalrusSigner {
-  toSuiAddress(): string
-  signAndExecuteTransaction(input: {
-    transaction: any
-    client?: any
-  }): Promise<{
-    Transaction?: { digest: string; effects: any }
-    FailedTransaction?: { digest: string; status: { error?: { message: string } } }
-  }>
-}

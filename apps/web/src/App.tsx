@@ -8,6 +8,7 @@ import { Home } from './pages/Home'
 import { Vault } from './pages/Vault'
 import { getStoredSuiNetwork, NETWORK_SWITCH_TOAST_KEY, networkLabel, type SuiNetwork } from './lib/network'
 import { networkKey } from './lib/storage'
+import { LogoMark } from './components/LogoMark'
 import type { Page } from './types'
 
 const PAGE_STORAGE_KEY = 'current-page'
