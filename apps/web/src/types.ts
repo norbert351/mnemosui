@@ -34,6 +34,7 @@ export interface Memory {
   metadata?: Record<string, unknown>
   blobId?: string
   saved: boolean
+  network?: string
   createdAt: string
   updatedAt: string
 }

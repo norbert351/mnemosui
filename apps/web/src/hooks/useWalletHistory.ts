@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getWalletBalances, getWalletHistory } from '../lib/api'
 import { getStoredSuiNetwork } from '../lib/network'
 
 const HISTORY_SOFT_TIMEOUT_MS = 15_000
+const DEBOUNCE_MS = 500
 
 function flattenTransactions(history: unknown): unknown[] {
   if (typeof history !== 'object' || history === null) return []
@@ -21,6 +22,8 @@ export function useWalletHistory(walletAddress: string | undefined) {
   const [history, setHistory] = useState<unknown>(null)
   const [balances, setBalances] = useState<unknown>(null)
   const [loading, setLoading] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
+  const fetchIdRef = useRef(0)
 
   useEffect(() => {
     if (!walletAddress) {
@@ -30,53 +33,63 @@ export function useWalletHistory(walletAddress: string | undefined) {
       return
     }
 
-    let cancelled = false
     const normalizedWalletAddress = walletAddress.toLowerCase()
-    const previousHistory = history
-    const previousBalances = balances
+    const fetchId = ++fetchIdRef.current
 
-    // Debounce to avoid rapid duplicate calls.
-    const timer = setTimeout(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    const timer = window.setTimeout(async () => {
+      if (fetchId !== fetchIdRef.current) return
       setLoading(true)
+
       const softTimeout = window.setTimeout(() => {
-        if (!cancelled) {
+        if (fetchId === fetchIdRef.current) {
           console.warn('[useWalletHistory] request still in flight after soft timeout')
         }
       }, HISTORY_SOFT_TIMEOUT_MS)
+
       try {
         const [historyResult, balancesResult] = await Promise.allSettled([
-          getWalletHistory(normalizedWalletAddress, network),
-          getWalletBalances(normalizedWalletAddress, network),
+          getWalletHistory(normalizedWalletAddress, network, controller.signal),
+          getWalletBalances(normalizedWalletAddress, network, controller.signal),
         ])
 
-        if (cancelled) return
+        if (fetchId !== fetchIdRef.current) return
+
         if (historyResult.status === 'fulfilled') {
           setHistory(historyResult.value)
         } else {
-          console.warn('[useWalletHistory] history fetch failed:', historyResult.reason)
-          setHistory(previousHistory)
+          const reason = historyResult.reason
+          if (reason instanceof Error && reason.name !== 'AbortError') {
+            console.warn('[useWalletHistory] history fetch failed:', reason)
+          }
         }
         if (balancesResult.status === 'fulfilled') {
           setBalances(balancesResult.value)
         } else {
-          console.warn('[useWalletHistory] balances fetch failed:', balancesResult.reason)
-          setBalances(previousBalances)
+          const reason = balancesResult.reason
+          if (reason instanceof Error && reason.name !== 'AbortError') {
+            console.warn('[useWalletHistory] balances fetch failed:', reason)
+          }
         }
       } catch (err) {
-        console.error('[useWalletHistory] fetch error:', err)
-        if (!cancelled) {
-          setHistory(previousHistory)
-          setBalances(previousBalances)
+        if (fetchId === fetchIdRef.current) {
+          console.error('[useWalletHistory] fetch error:', err)
         }
       } finally {
-        clearTimeout(softTimeout)
-        if (!cancelled) setLoading(false)
+        window.clearTimeout(softTimeout)
+        if (fetchId === fetchIdRef.current) {
+          setLoading(false)
+        }
       }
-    }, 500)
+    }, DEBOUNCE_MS)
 
     return () => {
-      cancelled = true
-      clearTimeout(timer)
+      window.clearTimeout(timer)
+      controller.abort()
+      fetchIdRef.current++
     }
   }, [walletAddress, network])
 

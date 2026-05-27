@@ -1,4 +1,4 @@
-import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit'
+import { useCurrentAccount } from '@mysten/dapp-kit'
 import {
   ArrowRight,
   Brain,
@@ -14,6 +14,7 @@ import { AnimatedMnemoSymbol } from '../components/AnimatedMnemoSymbol'
 import { DashboardPreview } from '../components/DashboardPreview'
 import { HeroLayout } from '../components/HeroLayout'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { WalletConnectButton } from '../components/WalletConnectButton'
 import { addressToHue, truncateAddress } from '../lib/format'
 import { useTheme } from '../hooks/useTheme'
 import type { Page } from '../types'
@@ -59,7 +60,7 @@ function WalletConnectBlock() {
           <p>Store trades, research, and wallet context in a permanent memory layer that MnemoSui can recall instantly.</p>
         </div>
         <div className="hero-connect-wrap">
-          <ConnectButton />
+          <WalletConnectButton />
         </div>
         <div className="hero-trust-row" aria-label="Platform trust badges">
           <span><Shield size={12} /> Powered by Sui</span>

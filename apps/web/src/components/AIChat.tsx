@@ -164,27 +164,43 @@ function CardStat({ label, value, color }: { label: string; value: string; color
 }
 
 function MessageContent({ content, streaming, isUser }: { content: string; streaming?: boolean; isUser: boolean }) {
-  const bubbleText = "whitespace-pre-wrap break-words text-sm md:text-[15px] leading-6 md:leading-7 antialiased"
+  const baseStyle = "text-sm md:text-[15px] antialiased"
+
+  const contentStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    lineHeight: 1.8,
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
+    whiteSpace: 'pre-wrap',
+  }
 
   if (streaming || isUser) {
-    return <span className={bubbleText}>{content}</span>
+    return (
+      <div style={contentStyle}>
+        {content.split('\n').map((line, i) => (
+          <span key={i} className={baseStyle} style={{ display: 'block', minHeight: '1.4em', lineHeight: 1.8 }}>
+            {line || '\u00A0'}
+          </span>
+        ))}
+      </div>
+    )
   }
 
   const paragraphs = content.split(/\n{2,}/).filter(Boolean)
 
-  if (paragraphs.length <= 1) {
-    return (
-      <p className={`${bubbleText} tracking-normal text-slate-200`}>
-        {content}
-      </p>
-    )
-  }
-
-  return paragraphs.map((p, i) => (
-    <p key={i} className={`${bubbleText} tracking-normal text-slate-200 mb-4 last:mb-0`}>
-      {p}
-    </p>
-  ))
+  return (
+    <div className="ai-message-content" style={contentStyle}>
+      {paragraphs.length <= 1 ? (
+        <p style={{ margin: 0, lineHeight: 1.8 }}>{paragraphs[0] || content}</p>
+      ) : (
+        paragraphs.map((p, i) => (
+          <p key={i} style={{ margin: 0, lineHeight: 1.8 }}>{p}</p>
+        ))
+      )}
+    </div>
+  )
 }
 
 function TypingIndicator() {
@@ -761,7 +777,7 @@ export function AIChat({ memories, walletAddress, balances, saveMemory }: Props)
               }
 
               return (
-                <div key={msg.id ?? idx} style={{ width: '100%' }}>
+                <div key={msg.id ?? idx} className="chat-message-enter" style={{ width: '100%' }}>
                   <div
                     style={{
                       display: 'flex',

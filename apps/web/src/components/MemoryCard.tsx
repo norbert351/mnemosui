@@ -234,7 +234,7 @@ export function MemoryCard({ memory, onDelete, isMainnet = false }: Props) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
           <div style={{ minHeight: '18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             {memory.saved && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: isWalrusDown ? 'var(--accent-amber)' : 'var(--accent-teal)' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: isWalrusDown ? 'var(--accent-amber)' : 'var(--accent-teal)', fontWeight: 600 }}>
                 {isWalrusDown ? <ExternalLink size={12} /> : <Check size={12} />}
                 {isWalrusDown ? 'Walrus syncing...' : 'Stored on Walrus'}
               </span>

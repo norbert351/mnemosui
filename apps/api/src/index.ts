@@ -6,7 +6,6 @@ import helmet from "helmet";
 import { errorHandler, notFoundHandler } from "./middleware/errors";
 import aiRoutes from "./routes/ai";
 import suiRoutes from "./routes/sui";
-import walrusRoutes from "./routes/walrus";
 
 dotenv.config();
 
@@ -85,17 +84,12 @@ app.get("/api/health", (_req, res) => {
       anthropic: keyStatus("ANTHROPIC_API_KEY"),
       tatum: keyStatus("TATUM_API_KEY"),
       testnetRpcUrl: process.env.TATUM_TESTNET_RPC_URL ?? process.env.TATUM_RPC_URL ?? "default",
-      mainnetRpcUrl: process.env.TATUM_MAINNET_RPC_URL ?? "default",
-      walrusTestnetPublisher: process.env.WALRUS_TESTNET_PUBLISHER_URL ?? process.env.WALRUS_PUBLISHER_URL ?? "default",
-      walrusTestnetAggregator: process.env.WALRUS_TESTNET_AGGREGATOR_URL ?? process.env.WALRUS_AGGREGATOR_URL ?? "default",
-      walrusMainnetPublisher: process.env.WALRUS_MAINNET_PUBLISHER_URL ?? "default",
-      walrusMainnetAggregator: process.env.WALRUS_MAINNET_AGGREGATOR_URL ?? "default"
+      mainnetRpcUrl: process.env.TATUM_MAINNET_RPC_URL ?? "default"
     }
   });
 });
 
 app.use("/api/ai", aiRoutes);
-app.use("/api/walrus", walrusRoutes);
 app.use("/api/sui", suiRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);

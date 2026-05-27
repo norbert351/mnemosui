@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { loadMemory, saveMemory as saveMemoryToWalrus, summarizeMemory } from '../lib/api'
-import { summarizeContent } from '../lib/format'
 import { getStoredSuiNetwork, type SuiNetwork } from '../lib/network'
+import { saveMemoryToWalrus } from '../services/walrus/upload'
+import { readBlob } from '../services/walrus/read'
+import { classifyWalrusError, delay } from '../services/walrus/utils'
+import type { WalrusSigner } from '../services/walrus/types'
+import { summarizeContent } from '../lib/format'
 import { networkKey } from '../lib/storage'
 import type { Memory, MemoryDraft } from '../types'
 
 interface MemoryIndexEntry {
   blobId: string
   cachedAt: string
-  // Full memory data cached locally for offline access
   memory?: Memory
-  // Legacy fields kept for backwards compatibility
   title?: string
   summary?: string
   updatedAt?: string
@@ -24,9 +25,15 @@ interface WalletMemoryIndex {
   cache: Record<string, MemoryIndexEntry>
 }
 
+interface WalrusContext {
+  signer: WalrusSigner
+  suiClient: any
+}
+
 const MEMORY_LOAD_RETRIES = 2
 const MEMORY_LOAD_BACKOFF_MS = 700
-const MEMORY_LOAD_SOFT_TIMEOUT_MS = 15_000
+const MEMORY_LOAD_SOFT_TIMEOUT_MS = 10_000
+
 function normalizeWalletAddress(walletAddress: string): string {
   return walletAddress.toLowerCase()
 }
@@ -60,8 +67,7 @@ function readIndex(network: SuiNetwork, walletAddress: string): WalletMemoryInde
     }
 
     return index
-  } catch (error) {
-    console.error('[useMemories] Failed to parse memory index', error)
+  } catch {
     return { walletAddress: normalizeWalletAddress(walletAddress), blobIds: [], cache: {} }
   }
 }
@@ -107,11 +113,7 @@ function publishMemoryRefresh(network: SuiNetwork, walletAddress: string) {
   }))
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => window.setTimeout(resolve, ms))
-}
-
-async function withRetry<T>(operation: () => Promise<T>, retries = MEMORY_LOAD_RETRIES): Promise<T> {
+async function withAggregatorRetry<T>(operation: () => Promise<T>, retries = MEMORY_LOAD_RETRIES): Promise<T> {
   let lastError: unknown
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -125,17 +127,17 @@ async function withRetry<T>(operation: () => Promise<T>, retries = MEMORY_LOAD_R
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error('Operation failed')
+  throw lastError instanceof Error ? lastError : new Error('Failed to load from aggregator')
 }
 
 function unavailableMemoryFromEntry(entry: MemoryIndexEntry, walletAddress: string): Memory {
-  const cachedText = entry.summary || entry.title || 'Content temporarily unavailable. MnemoSui will retry from Walrus.'
+  const cachedText = entry.summary || entry.title || 'Content temporarily unavailable.'
   return {
     id: entry.blobId,
     walletAddress: entry.walletAddress ?? walletAddress,
     type: entry.memory?.type ?? 'manual_note',
     title: entry.title ?? entry.memory?.title ?? 'Memory',
-    content: 'Content temporarily unavailable. MnemoSui will retry from Walrus.',
+    content: 'Content temporarily unavailable.',
     summary: cachedText,
     tags: entry.memory?.tags ?? [],
     txDigest: entry.memory?.txDigest,
@@ -149,7 +151,6 @@ function unavailableMemoryFromEntry(entry: MemoryIndexEntry, walletAddress: stri
 }
 
 function cachedMemoriesFromIndex(network: SuiNetwork, walletAddress: string): Memory[] {
-  console.info(`[network] loading ${network} wallet memories`)
   const index = readIndex(network, walletAddress)
   return index.blobIds
     .map(blobId => index.cache[blobId])
@@ -159,7 +160,7 @@ function cachedMemoriesFromIndex(network: SuiNetwork, walletAddress: string): Me
         return entry.memory
       }
 
-      const cachedText = entry.summary || entry.title || 'Memory content is still loading from Walrus.'
+      const cachedText = entry.summary || entry.title || 'Memory is still loading from Walrus.'
       return {
         id: entry.blobId,
         walletAddress: entry.walletAddress ?? walletAddress,
@@ -178,19 +179,14 @@ function cachedMemoriesFromIndex(network: SuiNetwork, walletAddress: string): Me
 
 async function loadIndexedMemories(network: SuiNetwork, walletAddress: string): Promise<Memory[]> {
   const index = readIndex(network, walletAddress)
-  console.info('[useMemories] loading index', {
-    network,
-    blobCount: index.blobIds.length,
-  })
 
   if (index.blobIds.length === 0) {
-    console.info('[useMemories] no memories to load', {
-      network,
-    })
     return []
   }
 
-  const results = await Promise.allSettled(index.blobIds.map(blobId => withRetry(() => loadMemory(blobId, network))))
+  const results = await Promise.allSettled(index.blobIds.map(blobId =>
+    withAggregatorRetry(() => readBlob(blobId, network)),
+  ))
   const loadedMemories: Memory[] = []
   const updatedCache: Record<string, MemoryIndexEntry> = { ...index.cache }
   const failedBlobIds: string[] = []
@@ -199,8 +195,18 @@ async function loadIndexedMemories(network: SuiNetwork, walletAddress: string): 
     const blobId = index.blobIds[i]
 
     if (result.status === 'fulfilled') {
-      loadedMemories.push(result.value)
-      updatedCache[blobId] = toMemoryIndexEntry(result.value)
+      try {
+        const memory = JSON.parse(result.value.data) as Memory
+        const withBlobId = { ...memory, blobId, saved: true }
+        loadedMemories.push(withBlobId)
+        updatedCache[blobId] = toMemoryIndexEntry(withBlobId)
+      } catch {
+        failedBlobIds.push(blobId)
+        const cachedEntry = index.cache[blobId]
+        if (cachedEntry) {
+          loadedMemories.push(cachedEntry.memory ?? unavailableMemoryFromEntry(cachedEntry, walletAddress))
+        }
+      }
       return
     }
 
@@ -209,24 +215,6 @@ async function loadIndexedMemories(network: SuiNetwork, walletAddress: string): 
     if (cachedEntry) {
       loadedMemories.push(cachedEntry.memory ?? unavailableMemoryFromEntry(cachedEntry, walletAddress))
     }
-    console.error('[useMemories] failed blobId', {
-      network,
-      error: result.reason instanceof Error ? result.reason.message : String(result.reason),
-    })
-  })
-
-  if (failedBlobIds.length > 0) {
-    console.warn('[useMemories] continuing with partial results', {
-      network,
-      loadedCount: loadedMemories.length,
-      requestedCount: index.blobIds.length,
-    })
-  }
-
-  console.info('[useMemories] loaded memories', {
-    network,
-    loadedCount: loadedMemories.length,
-    requestedCount: index.blobIds.length,
   })
 
   const nextIndex: WalletMemoryIndex = {
@@ -239,7 +227,10 @@ async function loadIndexedMemories(network: SuiNetwork, walletAddress: string): 
   return dedupeMemories(loadedMemories)
 }
 
-export function useMemories(walletAddress: string | undefined) {
+export function useMemories(
+  walletAddress: string | undefined,
+  walrusContext?: WalrusContext,
+) {
   const normalizedWalletAddress = walletAddress ? normalizeWalletAddress(walletAddress) : undefined
   const network = getStoredSuiNetwork()
   const [memories, setMemories] = useState<Memory[]>([])
@@ -257,20 +248,17 @@ export function useMemories(walletAddress: string | undefined) {
     }
 
     let cancelled = false
-    loadingRef.current = false
+
+    setIsLoading(true)
+    setError(null)
+
+    const softTimeout = window.setTimeout(() => {
+      if (!cancelled) {
+        setError('Walrus is taking longer than usual. Cached memories remain available.')
+      }
+    }, MEMORY_LOAD_SOFT_TIMEOUT_MS)
 
     const load = async () => {
-      if (loadingRef.current) return
-      loadingRef.current = true
-      setIsLoading(true)
-      setError(null)
-      const softTimeout = window.setTimeout(() => {
-        if (!cancelled) {
-          setError('Walrus is taking longer than usual. Cached memories remain available.')
-        }
-      }, MEMORY_LOAD_SOFT_TIMEOUT_MS)
-      console.info('[useMemories] loading started', { network })
-
       try {
         const cachedMemories = cachedMemoriesFromIndex(network, normalizedWalletAddress)
 
@@ -285,15 +273,13 @@ export function useMemories(walletAddress: string | undefined) {
         if (!cancelled) {
           setMemories(loadedMemories)
         }
-      } catch (loadError) {
-        console.error('[useMemories] Memory load failed', loadError)
+      } catch {
         if (!cancelled) {
           setError('Unable to load every memory from Walrus. Showing cached memories.')
           setMemories(cachedMemoriesFromIndex(network, normalizedWalletAddress))
         }
       } finally {
         window.clearTimeout(softTimeout)
-        loadingRef.current = false
         if (!cancelled) setIsLoading(false)
       }
     }
@@ -302,6 +288,7 @@ export function useMemories(walletAddress: string | undefined) {
 
     return () => {
       cancelled = true
+      window.clearTimeout(softTimeout)
     }
   }, [normalizedWalletAddress, network, reloadToken])
 
@@ -323,8 +310,7 @@ export function useMemories(walletAddress: string | undefined) {
           if (!cancelled) {
             setMemories(loadedMemories)
           }
-        } catch (refreshError) {
-          console.error('[useMemories] Memory refresh failed', refreshError)
+        } catch {
           if (!cancelled) {
             setError('Unable to refresh every memory from Walrus. Keeping cached memories visible.')
             setMemories(cachedMemoriesFromIndex(network, normalizedWalletAddress))
@@ -347,16 +333,15 @@ export function useMemories(walletAddress: string | undefined) {
       throw new Error('Wallet is not connected')
     }
 
+    if (!walrusContext) {
+      throw new Error('Walrus context not available. Connect your wallet first.')
+    }
+
     setIsLoading(true)
     setError(null)
 
     try {
-      console.info('[useMemories] saveMemory start', { network })
-
-      const summary = await summarizeMemory(draft.content).catch(error => {
-        console.error('[useMemories] summarizeMemory failed, falling back to local summary', error)
-        return summarizeContent(draft.content)
-      })
+      const summary = summarizeContent(draft.content)
 
       const now = new Date().toISOString()
       const memory: Memory = {
@@ -369,17 +354,23 @@ export function useMemories(walletAddress: string | undefined) {
         tags: draft.tags,
         txDigest: draft.txDigest,
         source: draft.source,
-        metadata: draft.metadata,
+        metadata: { ...draft.metadata, network },
         blobId: undefined,
         saved: false,
+        network,
         createdAt: now,
         updatedAt: now,
       }
 
-      const blobId = await saveMemoryToWalrus(memory, network)
+      const result = await saveMemoryToWalrus(
+        memory,
+        network,
+        walrusContext.signer,
+        walrusContext.suiClient,
+      )
       const savedMemory: Memory = {
         ...memory,
-        blobId,
+        blobId: result.blobId,
         saved: true,
         updatedAt: now,
       }
@@ -387,26 +378,25 @@ export function useMemories(walletAddress: string | undefined) {
       const index = readIndex(network, normalizedWalletAddress)
       const nextIndex: WalletMemoryIndex = {
         walletAddress: normalizedWalletAddress,
-        blobIds: [blobId, ...index.blobIds.filter(id => id !== blobId)],
+        blobIds: [result.blobId, ...index.blobIds.filter(id => id !== result.blobId)],
         cache: {
           ...index.cache,
-          [blobId]: toMemoryIndexEntry(savedMemory),
+          [result.blobId]: toMemoryIndexEntry(savedMemory),
         },
       }
       writeIndex(network, normalizedWalletAddress, nextIndex)
 
       setMemories(prev => dedupeMemories([savedMemory, ...prev]))
       publishMemoryRefresh(network, normalizedWalletAddress)
-      console.info('[useMemories] saveMemory success', { network })
       return savedMemory
     } catch (saveError) {
-      console.error('[useMemories] saveMemory failed', saveError)
-      setError('Unable to save memory right now.')
-      throw saveError instanceof Error ? saveError : new Error('Unable to save memory')
+      const classified = classifyWalrusError(saveError)
+      setError(classified.message)
+      throw classified
     } finally {
       setIsLoading(false)
     }
-  }, [normalizedWalletAddress, network])
+  }, [normalizedWalletAddress, network, walrusContext])
 
   const deleteMemory = useCallback((id: string) => {
     setMemories(prev => {

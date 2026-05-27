@@ -1,7 +1,6 @@
 import { useCurrentAccount, useCurrentWallet } from '@mysten/dapp-kit'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { LogoMark } from './components/LogoMark'
 import { ToastContainer } from './components/Toast'
 import { useToast } from './hooks/useToast'
 import { Chat } from './pages/Chat'
@@ -26,31 +25,6 @@ function pageStorageKey(): string {
 function readStoredPage(): Page {
   const stored = sessionStorage.getItem(pageStorageKey())
   return stored === 'home' || stored === 'vault' || stored === 'chat' ? stored : 'home'
-}
-
-function LoadingScreen({ label }: { label: string }) {
-  return (
-    <div
-      className="app-page fade-in"
-      style={{
-        display: 'grid',
-        placeItems: 'center',
-        padding: '24px',
-      }}
-    >
-      <div style={{ display: 'grid', justifyItems: 'center', gap: '14px', textAlign: 'center' }}>
-        <div className="loading-logo" style={{ width: '58px', height: '58px', display: 'grid', placeItems: 'center' }}>
-          <LogoMark size={46} />
-        </div>
-        <div>
-          <div style={{ color: 'var(--text-primary)', fontSize: '15px', fontWeight: 700 }}>{label}</div>
-          <div style={{ color: 'var(--text-tertiary)', fontSize: '12px', marginTop: '3px' }}>
-            Warming up wallet memory.
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function NetworkSwitchOverlay({ network }: { network: SuiNetwork }) {
@@ -131,7 +105,6 @@ export default function App() {
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false)
   const [switchingNetwork, setSwitchingNetwork] = useState<SuiNetwork | null>(null)
   const { toasts, addToast, removeToast } = useToast()
-  const isRestoringWallet = isConnecting && !account
 
   const setPage = (nextPage: Page) => {
     sessionStorage.setItem(pageStorageKey(), nextPage)
@@ -186,9 +159,9 @@ export default function App() {
 
   let content: ReactNode
 
-  if (isRestoringWallet) {
-    content = <LoadingScreen label="Restoring wallet session..." />
-  } else if (page === 'home') {
+  if (page === 'home') {
+    content = <Home onNavigate={setPage} />
+  } else if (!account) {
     content = <Home onNavigate={setPage} />
   } else if (page === 'chat') {
     content = <Chat onNavigate={setPage} onDisconnected={handleDisconnected} addToast={addToast} />
@@ -198,7 +171,7 @@ export default function App() {
 
   return (
     <>
-      <div key={isRestoringWallet ? 'loading' : page} className="route-shell">
+      <div key={page} className="route-shell">
         {content}
       </div>
       {isOffline && <OfflineBanner />}

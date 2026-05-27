@@ -45,7 +45,6 @@
 
 /* ── Light mode ──────────────────────────────────────── */
 :root[data-theme='light'] {
-  /* Gradient background - applied to body in light mode */
   --bg-page:      #F0F4FF;
   --bg-page-gradient: linear-gradient(
     135deg,
@@ -57,12 +56,12 @@
 
   --bg-surface:   #FFFFFF;
   --bg-elevated:  #FFFFFF;
-  --border:       rgba(99, 102, 241, 0.12);
-  --border-hover: rgba(37, 99, 235, 0.40);
+  --border:       rgba(99, 102, 241, 0.14);
+  --border-hover: rgba(37, 99, 235, 0.45);
 
-  --text-primary:   #0F172A;
-  --text-secondary: #3B4A6B;
-  --text-tertiary:  #8896B3;
+  --text-primary:   #0B1226;
+  --text-secondary: #1F2A44;
+  --text-tertiary:  #5A6B8A;
 
   --accent-blue:   #3B6EF8;
   --accent-teal:   #0EA5A0;
@@ -265,6 +264,20 @@ button:not(:disabled):active,
   100% { box-shadow: 0 0 18px color-mix(in srgb, var(--accent-teal) 18%, transparent); transform: scale(1); }
 }
 
+@keyframes uploadProgress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+.skeleton-pulse {
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
 /* ── Modal animation classes ─────────────────────────── */
 .modal-enter {
   animation: fadeSlideUp 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -296,6 +309,18 @@ button:not(:disabled):active,
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+.skeleton-subtle {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bg-elevated) 92%, transparent) 25%,
+    color-mix(in srgb, var(--accent-blue) 6%, var(--bg-elevated)) 50%,
+    color-mix(in srgb, var(--bg-elevated) 92%, transparent) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  border-radius: 6px;
 }
 
 .fade-in { animation: fadeIn 220ms ease both; }
@@ -344,16 +369,112 @@ button:not(:disabled):active,
   animation: toastSlide 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.upload-progress-bar {
+  position: relative;
+  height: 3px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+  overflow: hidden;
+}
+
+.upload-progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+  border-radius: inherit;
+  animation: uploadProgress 2s ease-in-out infinite;
+  width: 40%;
+}
+
 .chat-bubble {
   width: fit-content;
   max-width: 100%;
-  padding: 14px 18px;
+  padding: 16px 20px;
   color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 14.5px;
+  line-height: 1.8;
   overflow-wrap: anywhere;
   word-break: break-word;
   box-shadow: var(--shadow-card);
+}
+
+.chat-bubble-user {
+  color: #FFFFFF;
+}
+
+.ai-message-content {
+  color: var(--text-primary);
+  line-height: 1.8;
+}
+
+.ai-message-content p {
+  margin: 0;
+}
+
+.ai-message-content p + p {
+  margin-top: 14px;
+}
+
+.ai-message-content ul,
+.ai-message-content ol {
+  margin: 8px 0;
+  padding-left: 22px;
+}
+
+.ai-message-content li {
+  margin: 4px 0;
+  line-height: 1.7;
+}
+
+.ai-message-content code {
+  background: color-mix(in srgb, var(--accent-blue) 10%, var(--bg-surface));
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.ai-message-content pre {
+  margin: 12px 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
+  border: 0.5px solid var(--border);
+  overflow-x: auto;
+  font-size: 13px;
+}
+
+.ai-message-content pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.ai-message-content strong {
+  font-weight: 650;
+}
+
+.ai-message-content em {
+  font-style: italic;
+}
+
+:root[data-theme='light'] .ai-message-content code {
+  background: #EFF2FF;
+}
+
+:root[data-theme='light'] .ai-message-content pre {
+  background: #F5F7FC;
+}
+
+.chat-textarea::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+
+.chat-textarea:-ms-input-placeholder {
+  color: var(--text-tertiary);
 }
 
 .chat-shell {
@@ -571,6 +692,10 @@ button:not(:disabled):active,
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--bg-surface) 92%, var(--accent-blue)), var(--bg-surface));
   color: var(--text-primary);
+}
+
+.chat-message-enter {
+  animation: slideUp 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .chat-cursor {

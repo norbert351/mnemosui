@@ -4,7 +4,6 @@ import { getStoredSuiNetwork, networkHeader, type SuiNetwork } from './network'
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL ??
   (import.meta.env.PROD ? 'https://mnemosui.onrender.com' : 'http://localhost:3001')
-const WALRUS_LOAD_TIMEOUT_MS = 30_000
 
 interface ApiErrorPayload {
   success?: boolean
@@ -14,135 +13,128 @@ interface ApiErrorPayload {
   }
 }
 
-interface SaveMemoryResponse {
-  blobId: string
-}
-
-interface SummarizeResponse {
-  summary: string
-}
-
 interface SuiResponse<T> {
   result: T
 }
 
-interface LoadMemoryResponse {
-  memory: Memory
-}
+const API_TIMEOUT_MS = 15_000
 
 function normalizeBackendUrl(): string {
   return BACKEND_URL.replace(/\/+$/, '')
 }
 
-async function readJson<T>(response: Response, context: string): Promise<T> {
-  const payload = (await response.json().catch(() => null)) as ApiErrorPayload | T | null
-
-  if (!response.ok) {
-    let errorMessage = `${context} failed`
-    if (payload && typeof payload === 'object' && 'error' in payload) {
-      const errorValue = (payload as ApiErrorPayload).error
-      if (typeof errorValue === 'string') {
-        errorMessage = errorValue
-      } else if (errorValue?.message) {
-        errorMessage = errorValue.message
-      }
-    }
-
-    console.error(`[web/api] ${context} failed`, {
-      status: response.status,
-      statusText: response.statusText,
-      errorMessage,
-    })
-    throw new Error(errorMessage)
+class ApiNetworkError extends Error {
+  constructor(context: string, cause: unknown) {
+    const message = cause instanceof Error ? cause.message : String(cause)
+    super(`[api] ${context} failed: ${message}`)
+    this.name = 'ApiNetworkError'
   }
-
-  return payload as T
 }
 
-export async function summarizeMemory(content: string): Promise<string> {
-  const response = await fetch(`${normalizeBackendUrl()}/api/ai/summarize`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...networkHeader(),
-    },
-    body: JSON.stringify({ content }),
-  })
-
-  const data = await readJson<SummarizeResponse>(response, 'summarizeMemory')
-  return data.summary
-}
-
-export async function saveMemory(memory: Memory, network: SuiNetwork = getStoredSuiNetwork()): Promise<string> {
-  const response = await fetch(`${normalizeBackendUrl()}/api/walrus/save`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...networkHeader(network),
-    },
-    body: JSON.stringify({ memory }),
-  })
-
-  const data = await readJson<SaveMemoryResponse>(response, 'saveMemory')
-  return data.blobId
-}
-
-export async function loadMemory(blobId: string, network: SuiNetwork = getStoredSuiNetwork()): Promise<Memory> {
+async function apiFetch<T>(
+  url: string,
+  options: RequestInit & { signal?: AbortSignal },
+  context: string,
+): Promise<T> {
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => {
-    controller.abort()
-  }, WALRUS_LOAD_TIMEOUT_MS)
+  const timeoutId = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS)
+
+  const combinedSignal = options.signal
+    ? anySignal([options.signal, controller.signal])
+    : controller.signal
 
   try {
-    const response = await fetch(`${normalizeBackendUrl()}/api/walrus/load/${encodeURIComponent(blobId)}`, {
-      headers: networkHeader(network),
-      signal: controller.signal,
-    })
-    const data = await readJson<LoadMemoryResponse>(response, 'loadMemory')
-    return { ...data.memory, blobId, saved: true }
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.error('[web/api] loadMemory timed out', { timeoutMs: WALRUS_LOAD_TIMEOUT_MS })
-      throw new Error('Walrus temporarily unavailable')
+    const response = await fetch(url, { ...options, signal: combinedSignal })
+
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | T | null
+
+    if (!response.ok) {
+      let errorMessage = `${context} failed`
+      if (payload && typeof payload === 'object' && 'error' in payload) {
+        const errorValue = (payload as ApiErrorPayload).error
+        if (typeof errorValue === 'string') {
+          errorMessage = errorValue
+        } else if (errorValue?.message) {
+          errorMessage = errorValue.message
+        }
+      }
+
+      console.error(`[web/api] ${context} failed`, {
+        status: response.status,
+        statusText: response.statusText,
+        errorMessage,
+      })
+      throw new Error(errorMessage)
     }
 
-    throw error
+    return payload as T
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`${context} timed out after ${API_TIMEOUT_MS / 1000}s`)
+    }
+    throw new ApiNetworkError(context, error)
   } finally {
-    clearTimeout(timeoutId)
+    window.clearTimeout(timeoutId)
   }
 }
 
-export async function getWalletHistory(walletAddress: string, network: SuiNetwork = getStoredSuiNetwork()): Promise<WalletHistory> {
-  const response = await fetch(`${normalizeBackendUrl()}/api/sui/history`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...networkHeader(network),
-    },
-    body: JSON.stringify({ walletAddress, limit: 12 }),
-  })
+function anySignal(signals: AbortSignal[]): AbortSignal {
+  const controller = new AbortController()
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort(signal.reason)
+      return controller.signal
+    }
+    signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true })
+  }
+  return controller.signal
+}
 
-  const data = await readJson<SuiResponse<WalletHistory>>(response, 'getWalletHistory')
+export async function getWalletHistory(
+  walletAddress: string,
+  network: SuiNetwork = getStoredSuiNetwork(),
+  signal?: AbortSignal,
+): Promise<WalletHistory> {
+  const data = await apiFetch<SuiResponse<WalletHistory>>(
+    `${normalizeBackendUrl()}/api/sui/history`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...networkHeader(network),
+      },
+      body: JSON.stringify({ walletAddress, limit: 12 }),
+      signal,
+    },
+    'getWalletHistory',
+  )
   return data.result
 }
 
-export async function getWalletBalances(walletAddress: string, network: SuiNetwork = getStoredSuiNetwork()): Promise<unknown> {
-  const response = await fetch(`${normalizeBackendUrl()}/api/sui/balances`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...networkHeader(network),
+export async function getWalletBalances(
+  walletAddress: string,
+  network: SuiNetwork = getStoredSuiNetwork(),
+  signal?: AbortSignal,
+): Promise<unknown> {
+  const data = await apiFetch<SuiResponse<unknown>>(
+    `${normalizeBackendUrl()}/api/sui/balances`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...networkHeader(network),
+      },
+      body: JSON.stringify({ walletAddress }),
+      signal,
     },
-    body: JSON.stringify({ walletAddress }),
-  })
-
-  const data = await readJson<SuiResponse<unknown>>(response, 'getWalletBalances')
+    'getWalletBalances',
+  )
   return data.result
 }
 
 export async function streamAiChat(
   walletAddress: string,
-  memories: Memory[],
+  memories: readonly Memory[],
   messages: ChatMessage[],
   onText: (text: string) => void,
   signal: AbortSignal,

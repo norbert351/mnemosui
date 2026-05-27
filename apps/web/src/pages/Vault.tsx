@@ -1,6 +1,6 @@
 import { Plus, X } from 'lucide-react'
-import { useCurrentAccount } from '@mysten/dapp-kit'
-import { useState } from 'react'
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit'
+import { useMemo, useState } from 'react'
 import { Layout } from '../components/Layout'
 import { MemoryForm } from '../components/MemoryForm'
 import { MemoryList } from '../components/MemoryList'
@@ -9,8 +9,9 @@ import { TxCard, TxEmptyState } from '../components/TxCard'
 import { useMemories } from '../hooks/useMemories'
 import { useWalletHistory } from '../hooks/useWalletHistory'
 import { addressToHue, truncateAddress } from '../lib/format'
-import { getStoredSuiNetwork } from '../lib/network'
-import type { MemoryDraft, Page } from '../types'
+import { getStoredSuiNetwork, networkBadgeColor, type SuiNetwork } from '../lib/network'
+import { createWalrusSigner } from '../services/walrus/signer'
+import type { Memory, MemoryDraft, Page } from '../types'
 
 interface Props {
   onNavigate: (page: Page) => void
@@ -20,14 +21,37 @@ interface Props {
 
 export function Vault({ onNavigate, onDisconnected, addToast }: Props) {
   const account = useCurrentAccount()
+  const suiClient = useSuiClient()
+  const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction()
   const walletAddress = account?.address?.toLowerCase() ?? ''
-  const { memories, saveMemory, deleteMemory, isLoading, error, clearError, retryLoad } = useMemories(walletAddress)
+
+  const walrusContext = useMemo(() => {
+    if (!account || !suiClient) return undefined
+    return {
+      signer: createWalrusSigner(account.address, signAndExecuteTransaction, suiClient),
+      suiClient,
+    }
+  }, [account, suiClient, signAndExecuteTransaction])
+
+  const { memories, saveMemory, deleteMemory, isLoading, error, clearError, retryLoad } = useMemories(walletAddress, walrusContext)
   const { transactions, loading } = useWalletHistory(walletAddress)
   const [showForm, setShowForm] = useState(false)
   const [initialDraft, setInitialDraft] = useState<Partial<MemoryDraft> | undefined>(undefined)
+  const [networkFilter, setNetworkFilter] = useState<SuiNetwork | 'all'>(getStoredSuiNetwork())
   const hue = addressToHue(walletAddress)
   const network = getStoredSuiNetwork()
-  const isMainnet = network === 'mainnet'
+  const isMainnet = networkFilter === 'mainnet'
+
+  const filteredMemories = useMemo(() => {
+    if (networkFilter === 'all') return memories
+    return memories.filter(m => m.network === networkFilter || !m.network)
+  }, [memories, networkFilter])
+
+  const networkTabs: { id: SuiNetwork | 'all'; label: string }[] = [
+    { id: 'testnet', label: 'Testnet' },
+    { id: 'mainnet', label: 'Mainnet' },
+    { id: 'all', label: 'All' },
+  ]
 
   const rightPanel = (
     <div className="slide-up">
@@ -95,7 +119,34 @@ export function Vault({ onNavigate, onDisconnected, addToast }: Props) {
           </div>
         </header>
 
-        <MemoryList memories={memories} onDelete={deleteMemory} isLoading={isLoading} isMainnet={isMainnet} onOpenChat={() => onNavigate('chat')} />
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '0.5px solid var(--border)', paddingBottom: 0 }}>
+          {networkTabs.map(tab => {
+            const selected = networkFilter === tab.id
+            const color = tab.id !== 'all' ? networkBadgeColor(tab.id) : 'var(--accent-blue)'
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setNetworkFilter(tab.id)}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  padding: '8px 14px',
+                  color: selected ? color : 'var(--text-tertiary)',
+                  borderBottom: selected ? `2px solid ${color}` : '2px solid transparent',
+                  fontWeight: selected ? 700 : 500,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  transition: 'color 150ms, border-color 150ms',
+                }}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        <MemoryList memories={filteredMemories} onDelete={deleteMemory} isLoading={isLoading} isMainnet={isMainnet} onOpenChat={() => onNavigate('chat')} />
       </div>
 
       {showForm && (

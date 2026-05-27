@@ -5,13 +5,13 @@ import { createNetworkConfig, SuiClientProvider, WalletProvider } from '@mysten/
 import '@mysten/dapp-kit/dist/index.css'
 import './index.css'
 import App from './App'
-import { getStoredSuiNetwork, NETWORK_CONFIGS } from './lib/network'
+import { getStoredSuiNetwork } from './lib/network'
 
 const queryClient = new QueryClient()
 
 const { networkConfig } = createNetworkConfig({
-  testnet: { network: 'testnet', url: NETWORK_CONFIGS.testnet.rpcUrl },
-  mainnet: { network: 'mainnet', url: NETWORK_CONFIGS.mainnet.rpcUrl },
+  testnet: { network: 'testnet', url: 'https://fullnode.testnet.sui.io:443' },
+  mainnet: { network: 'mainnet', url: 'https://fullnode.mainnet.sui.io:443' },
 })
 const activeNetwork = getStoredSuiNetwork()
 

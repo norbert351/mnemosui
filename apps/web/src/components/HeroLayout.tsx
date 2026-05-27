@@ -1,9 +1,9 @@
-import { ConnectButton } from '@mysten/dapp-kit'
 import type { ReactNode } from 'react'
 import { HeroBackground } from './HeroBackground'
 import { LogoMark } from './LogoMark'
 import { NetworkSwitcher } from './NetworkSwitcher'
 import { ThemeToggle } from './ThemeToggle'
+import { WalletConnectButton } from './WalletConnectButton'
 
 interface HeroLayoutProps {
   children: ReactNode
@@ -24,7 +24,7 @@ export function HeroLayout({ children }: HeroLayoutProps) {
           <NetworkSwitcher />
           <ThemeToggle size="sm" />
           <div className="nav-connect-wrapper">
-            <ConnectButton />
+            <WalletConnectButton />
           </div>
         </div>
       </nav>
