@@ -22,7 +22,7 @@ export class WalletSigner extends Signer {
     return this.#address
   }
 
-  async sign(bytes: Uint8Array): Promise<Uint8Array> {
+  async sign(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
     throw new Error('Direct signing not supported. Use signAndExecuteTransaction instead.')
   }
 
