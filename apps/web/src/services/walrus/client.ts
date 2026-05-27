@@ -3,7 +3,7 @@ import type { SuiNetwork } from '../../lib/network'
 
 export type WalrusNetwork = SuiNetwork
 
-function getRelayHost(network: WalrusNetwork): string {
+export function getRelayHost(network: WalrusNetwork): string {
   return network === 'mainnet'
     ? 'https://upload-relay.mainnet.walrus.space'
     : 'https://upload-relay.testnet.walrus.space'

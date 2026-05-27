@@ -54,13 +54,21 @@ export class WalrusServiceError extends Error {
   public readonly code: string
   public readonly retryable: boolean
   public readonly status?: number
+  public readonly originalError?: unknown
 
-  constructor(payload: { code: string; message: string; retryable: boolean; status?: number }) {
+  constructor(payload: {
+    code: string
+    message: string
+    retryable: boolean
+    status?: number
+    originalError?: unknown
+  }) {
     super(payload.message)
     this.name = 'WalrusServiceError'
     this.code = payload.code
     this.retryable = payload.retryable
     this.status = payload.status
+    this.originalError = payload.originalError
   }
 }
 
@@ -69,6 +77,13 @@ export function classifyWalrusError(error: unknown): WalrusServiceError {
 
   const message = error instanceof Error ? error.message : String(error)
   const lower = message.toLowerCase()
+
+  console.error('[Walrus] classifyWalrusError:', {
+    message,
+    name: error instanceof Error ? error.name : typeof error,
+    status: error && typeof error === 'object' && 'status' in error ? (error as any).status : undefined,
+    error,
+  })
 
   if (lower.includes('timeout') || lower.includes('timed out')) {
     return new WalrusServiceError({
@@ -128,8 +143,10 @@ export function classifyWalrusError(error: unknown): WalrusServiceError {
 
   return new WalrusServiceError({
     code: 'UNKNOWN',
-    message: 'Something went wrong saving to Walrus. Please try again.',
+    message: `Walrus relay error: ${message}`,
     retryable: true,
+    status: error && typeof error === 'object' && 'status' in error ? (error as any).status : undefined,
+    originalError: error,
   })
 }
 

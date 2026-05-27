@@ -1,6 +1,7 @@
 import { createWalrusClient, type WalrusNetwork } from './client'
 import type { WalrusUploadResult, WalrusSigner } from './types'
 import { BlobTooLargeError, classifyWalrusError, MAX_BLOB_SIZE, withRetry } from './utils'
+import { getRelayHost } from './client'
 
 export interface UploadCallbacks {
   onStep?: (status: string) => void
@@ -33,12 +34,22 @@ export async function saveMemoryToWalrus(
   const json = JSON.stringify(memory)
   const encoder = new TextEncoder()
   const blob = encoder.encode(json)
+  const relayHost = getRelayHost(network)
+
+  console.log('[Walrus] saveMemoryToWalrus start', {
+    network,
+    relayHost,
+    blobSize: blob.byteLength,
+    maxSize: MAX_BLOB_SIZE,
+    memoryKeys: Object.keys(memory as object),
+  })
 
   if (blob.byteLength > MAX_BLOB_SIZE) {
     throw new BlobTooLargeError(blob.byteLength, MAX_BLOB_SIZE)
   }
 
   try {
+    console.log('[Walrus] Calling writeBlob via SDK...')
     const result = await withRetry(
       async () => {
         if (signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError')
@@ -60,6 +71,12 @@ export async function saveMemoryToWalrus(
       },
     )
 
+    console.log('[Walrus] writeBlob result:', {
+      blobId: result.blobId,
+      blobObjectKeys: result.blobObject ? Object.keys(result.blobObject) : null,
+      blobObjectId: result.blobObject?.id,
+    })
+
     return {
       blobId: result.blobId,
       blobObject: result.blobObject,
@@ -69,6 +86,12 @@ export async function saveMemoryToWalrus(
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw error
     }
+    console.error('[Walrus] saveMemoryToWalrus error:', {
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : String(error),
+      status: error && typeof error === 'object' && 'status' in error ? (error as any).status : undefined,
+      error,
+    })
     throw classifyWalrusError(error)
   }
 }
