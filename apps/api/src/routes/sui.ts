@@ -22,7 +22,7 @@ router.post("/history", async (req, res, next) => {
 
     res.json({ result });
   } catch (error) {
-    console.error("[api/sui] history failed", error);
+    console.error("[api/sui] history failed:", error instanceof Error ? error.message : error);
     next(error);
   }
 });
@@ -36,7 +36,7 @@ router.post("/balances", async (req, res, next) => {
 
     res.json({ result });
   } catch (error) {
-    console.error("[api/sui] balances failed", error);
+    console.error("[api/sui] balances failed:", error instanceof Error ? error.message : error);
     next(error);
   }
 });
@@ -55,7 +55,7 @@ router.post("/objects", async (req, res, next) => {
 
     res.json({ result });
   } catch (error) {
-    console.error("[api/sui] objects failed", error);
+    console.error("[api/sui] objects failed:", error instanceof Error ? error.message : error);
     next(error);
   }
 });

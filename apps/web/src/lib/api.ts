@@ -214,7 +214,7 @@ export async function streamAiChat(
     if ((err as Error).name === 'AbortError') {
       return
     }
-    console.error('[api] SSE stream read error:', err)
+    console.error('[api] SSE stream read error:', err instanceof Error ? err.message : err)
     throw err
   } finally {
     reader.releaseLock()

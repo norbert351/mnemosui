@@ -163,7 +163,7 @@ export function Vault({ onNavigate, onDisconnected, addToast }: Props) {
               if (saveError instanceof Error && saveError.message === 'Mainnet save cancelled') {
                 throw saveError
               }
-              console.error('[Vault] Memory save failed', saveError)
+              console.error('[Vault] Memory save failed:', saveError instanceof Error ? saveError.message : saveError)
               addToast('Failed to save memory', 'error')
               throw saveError
             }

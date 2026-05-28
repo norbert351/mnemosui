@@ -41,7 +41,6 @@ export async function saveMemoryToWalrus(
     relayHost,
     blobSize: blob.byteLength,
     maxSize: MAX_BLOB_SIZE,
-    memoryKeys: Object.keys(memory as object),
   })
 
   if (blob.byteLength > MAX_BLOB_SIZE) {
@@ -71,11 +70,7 @@ export async function saveMemoryToWalrus(
       },
     )
 
-    console.log('[Walrus] writeBlob result:', {
-      blobId: result.blobId,
-      blobObjectKeys: result.blobObject ? Object.keys(result.blobObject) : null,
-      blobObjectId: result.blobObject?.id,
-    })
+    console.log('[Walrus] writeBlob result:', { blobId: result.blobId })
 
     return {
       blobId: result.blobId,
@@ -90,7 +85,6 @@ export async function saveMemoryToWalrus(
       name: error instanceof Error ? error.name : typeof error,
       message: error instanceof Error ? error.message : String(error),
       status: error && typeof error === 'object' && 'status' in error ? (error as any).status : undefined,
-      error,
     })
     throw classifyWalrusError(error)
   }

@@ -82,7 +82,6 @@ export function classifyWalrusError(error: unknown): WalrusServiceError {
     message,
     name: error instanceof Error ? error.name : typeof error,
     status: error && typeof error === 'object' && 'status' in error ? (error as any).status : undefined,
-    error,
   })
 
   if (lower.includes('timeout') || lower.includes('timed out')) {

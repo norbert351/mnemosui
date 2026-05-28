@@ -79,7 +79,6 @@ async function callSuiRpc(
       network,
       method,
       status: response.status,
-      body: body.slice(0, 200),
     });
     throw new TatumError(
       `Tatum RPC ${method} failed with HTTP ${response.status}: ${body.slice(0, 160)}`

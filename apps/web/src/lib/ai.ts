@@ -75,7 +75,6 @@ export async function askAI({
     throw new Error('AI response did not include a readable stream')
   }
 
-  console.log('[AIChat] stream connected')
   return response.body
 }
 
@@ -90,7 +89,6 @@ function processSseEvent(event: string, onText: (text: string) => void): boolean
     const data = trimmed.slice(5).trim()
 
     if (data === '[DONE]') {
-      console.log('[AIChat] stream done')
       return true
     }
 
@@ -103,7 +101,6 @@ function processSseEvent(event: string, onText: (text: string) => void): boolean
           : ''
 
       if (delta) {
-        console.log('[AIChat] chunk received')
         onText(delta)
       }
     } catch (err) {
@@ -146,7 +143,6 @@ export async function readAIStream(
       if (streamDone) return
     }
 
-    console.log('[AIChat] stream done')
   } finally {
     reader.releaseLock()
   }
