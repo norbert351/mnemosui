@@ -35,13 +35,18 @@ export async function saveMemoryToWalrus(
   const encoder = new TextEncoder()
   const blob = encoder.encode(json)
   const relayHost = getRelayHost(network)
+  const epochs = network === 'mainnet' ? 1 : 3
 
   console.log('[Walrus] saveMemoryToWalrus start', {
     network,
     relayHost,
     blobSize: blob.byteLength,
     maxSize: MAX_BLOB_SIZE,
+    epochs,
+    sendTipConfigured: true,
   })
+
+  console.log('[Walrus] signer available:', !!signer)
 
   if (blob.byteLength > MAX_BLOB_SIZE) {
     throw new BlobTooLargeError(blob.byteLength, MAX_BLOB_SIZE)
@@ -55,7 +60,7 @@ export async function saveMemoryToWalrus(
         return await walrusClient.writeBlob({
           blob,
           deletable: false,
-          epochs: 1,
+          epochs,
           signer,
           signal,
           onStep: (step: any) => {
@@ -70,7 +75,8 @@ export async function saveMemoryToWalrus(
       },
     )
 
-    console.log('[Walrus] writeBlob result:', { blobId: result.blobId })
+    console.log('[Walrus] writeBlob success:', result)
+    console.log('[Walrus] blobId:', result.blobId)
 
     return {
       blobId: result.blobId,
@@ -81,6 +87,7 @@ export async function saveMemoryToWalrus(
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw error
     }
+    console.error('[Walrus] writeBlob failed:', error)
     console.error('[Walrus] saveMemoryToWalrus error:', {
       name: error instanceof Error ? error.name : typeof error,
       message: error instanceof Error ? error.message : String(error),
