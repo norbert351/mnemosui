@@ -42,18 +42,14 @@ npm run dev:web
 | `TATUM_RPC_URL` | Testnet RPC URL (default: Tatum testnet) | No |
 | `TATUM_TESTNET_RPC_URL` | Explicit testnet RPC URL | No |
 | `TATUM_MAINNET_RPC_URL` | Mainnet RPC URL (default: Tatum mainnet) | No |
-| `WALRUS_PUBLISHER_URL` | Testnet Walrus publisher | No |
-| `WALRUS_AGGREGATOR_URL` | Testnet Walrus aggregator | No |
-| `WALRUS_TESTNET_PUBLISHER_URL` | Explicit testnet Walrus publisher | No |
-| `WALRUS_TESTNET_AGGREGATOR_URL` | Explicit testnet Walrus aggregator | No |
-| `WALRUS_MAINNET_PUBLISHER_URL` | Mainnet Walrus publisher (default: publisher.walrus.space) | No |
-| `WALRUS_MAINNET_AGGREGATOR_URL` | Mainnet Walrus aggregator (default: aggregator.walrus.space) | No |
 
 ### Frontend (apps/web/.env)
 
 | Variable | Description | Required |
 | -------- | ----------- | -------- |
 | `VITE_BACKEND_URL` | Backend API URL | **Yes** |
+| `VITE_WALRUS_RELAY_TESTNET` | Backend API URL | **Yes** |
+| `VITE_WALRUS_RELAY_MAINNET` | Backend API URL | **Yes** |
 
 ### Render (Backend) Environment Variables
 
@@ -67,10 +63,6 @@ OPENROUTER_API_KEY=sk-or-v1-...
 TATUM_API_KEY=t-...
 TATUM_TESTNET_RPC_URL=https://sui-testnet.gateway.tatum.io
 TATUM_MAINNET_RPC_URL=https://sui-mainnet.gateway.tatum.io
-WALRUS_TESTNET_PUBLISHER_URL=https://publisher.walrus-testnet.walrus.space
-WALRUS_TESTNET_AGGREGATOR_URL=https://aggregator.walrus-testnet.walrus.space
-WALRUS_MAINNET_PUBLISHER_URL=https://publisher.walrus.space
-WALRUS_MAINNET_AGGREGATOR_URL=https://aggregator.walrus.space
 ```
 
 ### Vercel (Frontend) Environment Variables
@@ -79,6 +71,8 @@ Set these in Vercel dashboard:
 
 ```
 VITE_BACKEND_URL=https://your-render-backend.onrender.com
+VITE_WALRUS_RELAY_TESTNET=https://upload-relay.testnet.walrus.space
+VITE_WALRUS_RELAY_MAINNET=https://upload-relay.mainnet.walrus.space
 ```
 
 ## Demo flow
